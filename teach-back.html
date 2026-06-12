@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teach-Back: How Lift is Created | CFI Coach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --surface2:  #1e2333;
+      --border:    #2a2f42;
+      --accent:    #4f7cff;
+      --accent-soft: rgba(79,124,255,.12);
+      --green:     #34d399;
+      --green-soft: rgba(52,211,153,.12);
+      --amber:     #fbbf24;
+      --amber-soft: rgba(251,191,36,.12);
+      --red:       #f87171;
+      --red-soft:  rgba(248,113,113,.12);
+      --text:      #e8eaf2;
+      --text-muted:#8b92a8;
+      --radius:    12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.4);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--accent); }
+    .topbar-title {
+      flex: 1;
+      min-width: 0;
+    }
+    .topbar-title .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2px;
+    }
+    .topbar-title h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .timer-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .02em;
+      white-space: nowrap;
+    }
+    .timer-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background .3s;
+    }
+    .timer-dot.recording { background: var(--red); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── MAIN LAYOUT ── */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      grid-template-rows: 1fr auto;
+      gap: 0;
+      overflow: hidden;
+      height: calc(100vh - 57px);
+    }
+
+    /* ── WHITEBOARD ── */
+    .whiteboard-area {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .wb-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .wb-toolbar-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+    .tool-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+    .tool-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 15px;
+      transition: all .15s;
+    }
+    .tool-btn:hover { background: var(--surface2); color: var(--text); }
+    .tool-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    .color-swatch {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    .color-swatch:hover { transform: scale(1.15); }
+    .color-swatch.active { border-color: #fff; transform: scale(1.1); }
+    .size-slider {
+      -webkit-appearance: none;
+      width: 80px; height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    .size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .clear-btn {
+      margin-left: auto;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    #whiteboard {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    .canvas-hint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      opacity: .25;
+    }
+    .canvas-hint svg { width: 48px; height: 48px; fill: #666; margin-bottom: 8px; }
+    .canvas-hint p { font-size: 13px; color: #666; }
+    #whiteboard.has-drawing ~ .canvas-hint { display: none; }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel-scroll::-webkit-scrollbar { width: 4px; }
+    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Topic card */
+    .topic-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .topic-card .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .topic-card h2 {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .faa-ref {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .faa-ref svg { flex-shrink: 0; }
+
+    /* Guidance */
+    .guidance-card {
+      background: var(--accent-soft);
+      border: 1px solid rgba(79,124,255,.25);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .guidance-card .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .guidance-card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .guidance-card li {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .guidance-card li::before {
+      content: '→';
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* Transcript */
+    .transcript-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      flex: 1;
+      min-height: 120px;
+    }
+    .transcript-card .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .live-badge {
+      display: none;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      background: var(--red-soft);
+      color: var(--red);
+      border-radius: 4px;
+      letter-spacing: .04em;
+    }
+    .live-badge.visible { display: inline-block; }
+    #transcript-text {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      min-height: 60px;
+    }
+    #transcript-text.has-text { color: var(--text); }
+    #transcript-text .interim { color: var(--text-muted); font-style: italic; }
+
+    /* ── RECORD BAR ── */
+    .record-bar {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .record-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .record-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .record-btn.start {
+      background: var(--accent);
+      color: #fff;
+    }
+    .record-btn.start:hover { background: #3d6bef; }
+    .record-btn.stop {
+      background: var(--red-soft);
+      border: 1px solid var(--red);
+      color: var(--red);
+    }
+    .record-btn.stop:hover { background: rgba(248,113,113,.2); }
+    .record-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .submit-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: var(--green);
+      color: #0f1117;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .submit-btn:hover { background: #2bc28a; }
+    .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── API KEY MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 380px;
+      box-shadow: var(--shadow);
+    }
+    .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .modal p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+    .modal input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: monospace;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btns button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .modal-btns .primary { background: var(--accent); color: #fff; }
+    .modal-btns .secondary { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* ── FEEDBACK PANEL ── */
+    .feedback-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 150;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .feedback-overlay.open { display: flex; }
+    .feedback-sheet {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-width: 860px;
+      max-height: 82vh;
+      overflow-y: auto;
+      padding: 28px 32px 36px;
+      box-shadow: var(--shadow);
+      animation: slideUp .3s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .feedback-sheet::-webkit-scrollbar { width: 4px; }
+    .feedback-sheet::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .feedback-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .feedback-header h2 { font-size: 20px; font-weight: 800; }
+    .feedback-header .sub { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+    .close-btn {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .close-btn:hover { color: var(--text); }
+
+    .score-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .score-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      text-align: center;
+    }
+    .score-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 6px; }
+    .score-card .value { font-size: 24px; font-weight: 800; }
+    .score-card .value.green { color: var(--green); }
+    .score-card .value.amber { color: var(--amber); }
+    .score-card .value.red   { color: var(--red); }
+
+    .overall-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .overall-badge.pass { background: var(--green-soft); color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+    .overall-badge.borderline { background: var(--amber-soft); color: var(--amber); border: 1px solid rgba(251,191,36,.3); }
+    .overall-badge.needs-work { background: var(--red-soft); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+
+    .feedback-body {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+    .feedback-body .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .feedback-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .feedback-actions button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+    }
+    .try-again-btn { background: var(--accent); color: #fff; }
+    .try-again-btn:hover { background: #3d6bef; }
+    .dismiss-btn { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border) !important; border: none; }
+
+    /* Waveform visualizer */
+    .waveform {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 28px;
+      padding: 0 4px;
+    }
+    .waveform.visible { display: flex; }
+    .wave-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--red);
+      animation: wave 1s ease-in-out infinite;
+    }
+    .wave-bar:nth-child(1) { animation-delay: 0s; }
+    .wave-bar:nth-child(2) { animation-delay: .1s; }
+    .wave-bar:nth-child(3) { animation-delay: .2s; }
+    .wave-bar:nth-child(4) { animation-delay: .3s; }
+    .wave-bar:nth-child(5) { animation-delay: .2s; }
+    .wave-bar:nth-child(6) { animation-delay: .1s; }
+    .wave-bar:nth-child(7) { animation-delay: 0s; }
+    @keyframes wave {
+      0%,100% { height: 6px; }
+      50% { height: 22px; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto auto;
+        height: auto;
+        min-height: calc(100vh - 57px);
+      }
+      .whiteboard-area { min-height: 320px; border-right: none; border-bottom: 1px solid var(--border); }
+      .right-panel { max-height: none; }
+      .score-row { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <a href="index.html" class="back-btn">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M10 3L5 8l5 5"/></svg>
+    Dashboard
+  </a>
+  <div class="topbar-title">
+    <p class="eyebrow">Teach-Back Session</p>
+    <h1>How is lift created on an airplane?</h1>
+  </div>
+  <div class="timer-badge">
+    <div class="timer-dot" id="timerDot"></div>
+    <span id="timerDisplay">00:00</span>
+  </div>
+</header>
+
+<!-- MAIN WORKSPACE -->
+<div class="workspace">
+
+  <!-- WHITEBOARD -->
+  <div class="whiteboard-area">
+    <div class="wb-toolbar">
+      <span class="wb-toolbar-label">Board</span>
+      <button class="tool-btn active" id="toolPen" title="Pen" onclick="setTool('pen')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      </button>
+      <button class="tool-btn" id="toolHighlight" title="Highlighter" onclick="setTool('highlight')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="18" height="8" rx="2"/><path d="M8 12V7a4 4 0 0 1 8 0v5"/></svg>
+      </button>
+      <button class="tool-btn" id="toolEraser" title="Eraser" onclick="setTool('eraser')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l9-9 8 8-3.5 3.5"/><path d="M6.5 17.5l5-5"/></svg>
+      </button>
+
+      <div class="tool-sep"></div>
+
+      <div class="color-swatch active" style="background:#1a1a2e" data-color="#1a1a2e" onclick="setColor(this)" title="Dark"></div>
+      <div class="color-swatch" style="background:#e63946" data-color="#e63946" onclick="setColor(this)" title="Red"></div>
+      <div class="color-swatch" style="background:#2563eb" data-color="#2563eb" onclick="setColor(this)" title="Blue"></div>
+      <div class="color-swatch" style="background:#16a34a" data-color="#16a34a" onclick="setColor(this)" title="Green"></div>
+      <div class="color-swatch" style="background:#d97706" data-color="#d97706" onclick="setColor(this)" title="Orange"></div>
+
+      <div class="tool-sep"></div>
+      <input type="range" class="size-slider" id="sizeSlider" min="1" max="20" value="3" title="Brush size" />
+
+      <button class="clear-btn" onclick="clearBoard()">Clear board</button>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="whiteboard"></canvas>
+      <div class="canvas-hint" id="canvasHint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+        <p>Draw your diagram here</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="panel-scroll">
+
+      <!-- Topic -->
+      <div class="topic-card">
+        <p class="eyebrow">Today's Topic</p>
+        <h2>How is lift created on an airplane?</h2>
+        <div class="faa-ref">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm.75 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zM7.25 7h1.5v5h-1.5V7z"/></svg>
+          PHAK Ch. 4 · Aviation Instructor's Handbook
+        </div>
+      </div>
+
+      <!-- Guidance -->
+      <div class="guidance-card">
+        <p class="eyebrow">Cover these concepts</p>
+        <ul>
+          <li>Airfoil shape and chord line</li>
+          <li>Relative wind and angle of attack</li>
+          <li>Pressure differential (Bernoulli)</li>
+          <li>Reaction force (Newton's 3rd law)</li>
+          <li>Lift equation: L = CL × ½ρV² × S</li>
+          <li>What increases/decreases lift</li>
+        </ul>
+      </div>
+
+      <!-- Transcript -->
+      <div class="transcript-card">
+        <p class="eyebrow">
+          Live Transcript
+          <span class="live-badge" id="liveBadge">● LIVE</span>
+        </p>
+        <div id="transcript-text">Your words will appear here as you speak...</div>
+      </div>
+
+    </div>
+
+    <!-- Record bar -->
+    <div class="record-bar">
+      <div class="record-controls">
+        <button class="record-btn start" id="recordBtn" onclick="toggleRecording()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+          Start Recording
+        </button>
+        <div class="waveform" id="waveform">
+          <div class="wave-bar" style="height:8px"></div>
+          <div class="wave-bar" style="height:14px"></div>
+          <div class="wave-bar" style="height:20px"></div>
+          <div class="wave-bar" style="height:24px"></div>
+          <div class="wave-bar" style="height:20px"></div>
+          <div class="wave-bar" style="height:14px"></div>
+          <div class="wave-bar" style="height:8px"></div>
+        </div>
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="submitForFeedback()" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Submit for CFI Review
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>Connect your API key</h2>
+    <p>CFI Coach uses Claude AI to give you FAA-aligned feedback. Paste your Anthropic API key below — it's stored only in your browser and never sent anywhere except Anthropic's servers.</p>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" />
+    <div class="modal-btns">
+      <button class="secondary" onclick="closeApiModal()">Skip for now</button>
+      <button class="primary" onclick="saveApiKey()">Save &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- FEEDBACK SHEET -->
+<div class="feedback-overlay" id="feedbackOverlay">
+  <div class="feedback-sheet">
+    <div class="feedback-header">
+      <div>
+        <h2>CFI Feedback</h2>
+        <div class="sub">Based on FAA PHAK Ch. 4 &amp; Aviation Instructor's Handbook</div>
+      </div>
+      <button class="close-btn" onclick="closeFeedback()">×</button>
+    </div>
+
+    <div class="score-row" id="scoreRow" style="display:none">
+      <div class="score-card">
+        <div class="label">Accuracy</div>
+        <div class="value" id="scoreAccuracy">—</div>
+      </div>
+      <div class="score-card">
+        <div class="label">Completeness</div>
+        <div class="value" id="scoreComplete">—</div>
+      </div>
+      <div class="score-card">
+        <div class="label">Teachability</div>
+        <div class="value" id="scoreTeach">—</div>
+      </div>
+    </div>
+
+    <div id="overallBadge"></div>
+
+    <div class="feedback-body" id="feedbackBody">
+      <div class="loading">
+        <div class="spinner"></div>
+        Your CFI is reviewing your explanation...
+      </div>
+    </div>
+
+    <div class="feedback-actions">
+      <button class="try-again-btn" onclick="tryAgain()">Try Again</button>
+      <button class="dismiss-btn" onclick="closeFeedback()">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// WHITEBOARD
+// ═══════════════════════════════════════════
+const canvas = document.getElementById('whiteboard');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+let lastX = 0, lastY = 0;
+let currentTool = 'pen';
+let currentColor = '#1a1a2e';
+let hasDrawing = false;
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  ctx.putImageData(img, 0, 0);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return [src.clientX - rect.left, src.clientY - rect.top];
+}
+
+function startDraw(e) {
+  e.preventDefault();
+  drawing = true;
+  [lastX, lastY] = getPos(e);
+}
+
+function draw(e) {
+  e.preventDefault();
+  if (!drawing) return;
+  const [x, y] = getPos(e);
+  const size = parseInt(document.getElementById('sizeSlider').value);
+
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (currentTool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.lineWidth = size * 4;
+  } else if (currentTool === 'highlight') {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = currentColor + '55';
+    ctx.lineWidth = size * 5;
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = size;
+  }
+
+  ctx.stroke();
+  [lastX, lastY] = [x, y];
+
+  if (!hasDrawing) {
+    hasDrawing = true;
+    canvas.classList.add('has-drawing');
+    document.getElementById('canvasHint').style.display = 'none';
+  }
+}
+
+function stopDraw() { drawing = false; }
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDraw);
+canvas.addEventListener('mouseleave', stopDraw);
+canvas.addEventListener('touchstart', startDraw, {passive:false});
+canvas.addEventListener('touchmove', draw, {passive:false});
+canvas.addEventListener('touchend', stopDraw);
+
+function setTool(tool) {
+  currentTool = tool;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1)).classList.add('active');
+}
+
+function setColor(el) {
+  currentColor = el.dataset.color;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  if (currentTool === 'eraser') setTool('pen');
+}
+
+function clearBoard() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasDrawing = false;
+  canvas.classList.remove('has-drawing');
+  document.getElementById('canvasHint').style.display = '';
+}
+
+// ═══════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════
+let timerSec = 0, timerInterval = null;
+
+function startTimer() {
+  timerSec = 0;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerSec++;
+    const m = String(Math.floor(timerSec / 60)).padStart(2, '0');
+    const s = String(timerSec % 60).padStart(2, '0');
+    document.getElementById('timerDisplay').textContent = m + ':' + s;
+  }, 1000);
+  document.getElementById('timerDot').classList.add('recording');
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  document.getElementById('timerDot').classList.remove('recording');
+}
+
+// ═══════════════════════════════════════════
+// AUDIO RECORDER + SPEECH RECOGNITION
+// ═══════════════════════════════════════════
+let isRecording = false;
+let finalTranscript = '';
+let interimTranscript = '';
+let recognition = null;
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function initRecognition() {
+  if (!SpeechRecognition) return null;
+  const r = new SpeechRecognition();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = 'en-US';
+
+  r.onresult = (e) => {
+    interimTranscript = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        finalTranscript += e.results[i][0].transcript + ' ';
+      } else {
+        interimTranscript += e.results[i][0].transcript;
+      }
+    }
+    updateTranscriptDisplay();
+  };
+
+  r.onerror = (e) => {
+    if (e.error !== 'no-speech') console.warn('Speech recognition error:', e.error);
+  };
+
+  r.onend = () => {
+    if (isRecording) r.start(); // keep going
+  };
+
+  return r;
+}
+
+function updateTranscriptDisplay() {
+  const el = document.getElementById('transcript-text');
+  const combined = finalTranscript + (interimTranscript ? `<span class="interim">${interimTranscript}</span>` : '');
+  if (combined.trim()) {
+    el.classList.add('has-text');
+    el.innerHTML = combined;
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function toggleRecording() {
+  if (!isRecording) startRecording();
+  else stopRecording();
+}
+
+function startRecording() {
+  isRecording = true;
+  finalTranscript = '';
+  interimTranscript = '';
+
+  const btn = document.getElementById('recordBtn');
+  btn.className = 'record-btn stop';
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> Stop Recording`;
+
+  document.getElementById('waveform').classList.add('visible');
+  document.getElementById('liveBadge').classList.add('visible');
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('transcript-text').textContent = '';
+  document.getElementById('transcript-text').classList.remove('has-text');
+
+  startTimer();
+
+  if (SpeechRecognition) {
+    recognition = initRecognition();
+    recognition.start();
+  } else {
+    document.getElementById('transcript-text').textContent = 'Live transcription not supported in this browser. Your audio was captured — submit when ready.';
+  }
+}
+
+function stopRecording() {
+  isRecording = false;
+
+  const btn = document.getElementById('recordBtn');
+  btn.className = 'record-btn start';
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Record Again`;
+
+  document.getElementById('waveform').classList.remove('visible');
+  document.getElementById('liveBadge').classList.remove('visible');
+  stopTimer();
+
+  if (recognition) { recognition.stop(); recognition = null; }
+
+  const hasContent = finalTranscript.trim().length > 10;
+  document.getElementById('submitBtn').disabled = !hasContent;
+
+  if (!finalTranscript.trim()) {
+    document.getElementById('transcript-text').textContent = 'No transcript captured. Try speaking more clearly or check microphone permissions.';
+  }
+}
+
+// ═══════════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════════
+function getApiKey() { return localStorage.getItem('cfi_coach_api_key') || ''; }
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) return;
+  localStorage.setItem('cfi_coach_api_key', key);
+  closeApiModal();
+  submitForFeedback();
+}
+function closeApiModal() { document.getElementById('apiModal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════
+// SUBMIT + AI FEEDBACK
+// ═══════════════════════════════════════════
+async function submitForFeedback() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    document.getElementById('apiModal').classList.add('open');
+    return;
+  }
+
+  const transcript = finalTranscript.trim();
+  if (!transcript) return;
+
+  // Open feedback sheet in loading state
+  document.getElementById('feedbackOverlay').classList.add('open');
+  document.getElementById('feedbackBody').innerHTML = `<div class="loading"><div class="spinner"></div>Your CFI is reviewing your explanation...</div>`;
+  document.getElementById('scoreRow').style.display = 'none';
+  document.getElementById('overallBadge').innerHTML = '';
+
+  const prompt = buildFeedbackPrompt(transcript);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.content[0].text;
+    renderFeedback(text);
+
+  } catch (err) {
+    document.getElementById('feedbackBody').innerHTML = `<span style="color:var(--red)">⚠ Could not reach the API: ${err.message}<br><br>Check your API key and try again.</span>`;
+  }
+}
+
+function buildFeedbackPrompt(transcript) {
+  return `You are an experienced and highly regarded Certified Flight Instructor (CFI) evaluating a student who is preparing for their CFI checkride. The student just completed a "teach-back" exercise explaining how lift is created on an airplane. You are evaluating both their technical accuracy AND their ability to teach the concept clearly to a private pilot student.
+
+Your feedback must be grounded exclusively in the following FAA documents:
+- FAA Pilot's Handbook of Aeronautical Knowledge (PHAK), specifically Chapter 4 (Aerodynamics of Flight)
+- FAA Aviation Instructor's Handbook (AIH), Chapters on effective teaching
+
+KEY CONCEPTS from PHAK Ch. 4 that should be covered:
+1. Airfoil terminology: chord line, camber, leading/trailing edge
+2. Relative wind and angle of attack (AOA)
+3. Bernoulli's Principle: faster airflow over the curved upper surface = lower pressure = lift (pressure differential between upper/lower wing surfaces)
+4. Newton's Third Law: wing deflects air downward, reaction force pushes wing up
+5. The lift equation: L = CL × ½ρV² × S (lift coefficient, air density, velocity squared, wing area)
+6. What increases/decreases lift: AOA, airspeed, air density (altitude/temp/humidity), wing area, flaps
+7. Important: the FAA acknowledges BOTH Bernoulli and Newton — both contribute to lift. Avoid "equal transit time" theory (debunked).
+
+STUDENT'S TRANSCRIPT:
+"${transcript}"
+
+INSTRUCTIONS FOR YOUR RESPONSE:
+- Respond as a warm, skilled CFI would after watching a student teach-back — conversational, specific, and human. NOT like a checklist.
+- Start by acknowledging 1-2 things they explained well. Be genuine.
+- Then address the most important gap or error. Be specific — quote what they said if helpful. Don't pile on with a list of everything wrong.
+- If they stated anything that contradicts FAA guidance (like the debunked equal transit time theory), correct it kindly but clearly.
+- Give them ONE concrete suggestion for how to improve their explanation.
+- Close with genuine encouragement and a "what to work on next" framing.
+- Keep it under 280 words. Sound like a real person, not an AI.
+- Do NOT use bullet points or headers — write it as flowing natural speech, the way a CFI would actually talk.
+
+Then on a NEW LINE after your feedback, output ONLY this exact JSON block (no other text around it):
+SCORES:{"accuracy": X, "completeness": X, "teachability": X, "overall": "pass|borderline|needs-work"}
+Where X is a score 1-5. Overall: "pass" = ready to teach a student, "borderline" = close but needs polish, "needs-work" = significant gaps.`;
+}
+
+function renderFeedback(text) {
+  // Parse out scores
+  const scoreMatch = text.match(/SCORES:\s*(\{.*\})/);
+  let feedback = text.replace(/SCORES:\s*\{.*\}/, '').trim();
+
+  if (scoreMatch) {
+    try {
+      const scores = JSON.parse(scoreMatch[1]);
+      renderScores(scores);
+    } catch(e) {}
+  }
+
+  document.getElementById('feedbackBody').textContent = feedback;
+}
+
+function scoreColor(v) {
+  if (v >= 4) return 'green';
+  if (v >= 3) return 'amber';
+  return 'red';
+}
+
+function renderScores(scores) {
+  const row = document.getElementById('scoreRow');
+  row.style.display = 'grid';
+  document.getElementById('scoreAccuracy').textContent = scores.accuracy + '/5';
+  document.getElementById('scoreAccuracy').className = 'value ' + scoreColor(scores.accuracy);
+  document.getElementById('scoreComplete').textContent = scores.completeness + '/5';
+  document.getElementById('scoreComplete').className = 'value ' + scoreColor(scores.completeness);
+  document.getElementById('scoreTeach').textContent = scores.teachability + '/5';
+  document.getElementById('scoreTeach').className = 'value ' + scoreColor(scores.teachability);
+
+  const badgeEl = document.getElementById('overallBadge');
+  const labels = { pass: '✓ Checkride Ready', borderline: '~ Getting There', 'needs-work': '↻ Keep Practicing' };
+  const cls    = { pass: 'pass', borderline: 'borderline', 'needs-work': 'needs-work' };
+  badgeEl.innerHTML = `<span class="overall-badge ${cls[scores.overall] || 'borderline'}">${labels[scores.overall] || 'Keep Practicing'}</span>`;
+}
+
+function closeFeedback() {
+  document.getElementById('feedbackOverlay').classList.remove('open');
+}
+
+function tryAgain() {
+  closeFeedback();
+  finalTranscript = '';
+  interimTranscript = '';
+  document.getElementById('transcript-text').textContent = 'Your words will appear here as you speak...';
+  document.getElementById('transcript-text').classList.remove('has-text');
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('timerDisplay').textContent = '00:00';
+  const btn = document.getElementById('recordBtn');
+  btn.className = 'record-btn start';
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Start Recording`;
+  clearBoard();
+}
+
+// Close modals on overlay click
+document.getElementById('feedbackOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeFeedback();
+});
+document.getElementById('apiModal').addEventListener('click', function(e) {
+  if (e.target === this) closeApiModal();
+});
+</script>
+</body>
+</html>
