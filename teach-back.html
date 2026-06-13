@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teach-Back: How Lift is Created | CFI Coach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --surface2:  #1e2333;
+      --border:    #2a2f42;
+      --accent:    #4f7cff;
+      --accent-soft: rgba(79,124,255,.12);
+      --green:     #34d399;
+      --green-soft: rgba(52,211,153,.12);
+      --amber:     #fbbf24;
+      --amber-soft: rgba(251,191,36,.12);
+      --red:       #f87171;
+      --red-soft:  rgba(248,113,113,.12);
+      --text:      #e8eaf2;
+      --text-muted:#8b92a8;
+      --radius:    12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.4);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOP BAR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--accent); }
+    .topbar-title { flex: 1; min-width: 0; }
+    .topbar-title .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2px;
+    }
+    .topbar-title h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .phase-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .timer-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .02em;
+      white-space: nowrap;
+    }
+    .timer-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background .3s;
+    }
+    .timer-dot.recording { background: var(--red); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* MAIN LAYOUT */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 0;
+      overflow: hidden;
+      height: calc(100vh - 57px);
+    }
+
+    /* WHITEBOARD */
+    .whiteboard-area {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .wb-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .wb-toolbar-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+    .tool-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+    .tool-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 15px;
+      transition: all .15s;
+    }
+    .tool-btn:hover { background: var(--surface2); color: var(--text); }
+    .tool-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    .color-swatch {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    .color-swatch:hover { transform: scale(1.15); }
+    .color-swatch.active { border-color: #fff; transform: scale(1.1); }
+    .size-slider {
+      -webkit-appearance: none;
+      width: 80px; height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    .size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .clear-btn {
+      margin-left: auto;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+      touch-action: none;
+    }
+    #whiteboard {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .canvas-hint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      opacity: .25;
+    }
+    .canvas-hint svg { width: 48px; height: 48px; fill: #666; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto; }
+    .canvas-hint p { font-size: 13px; color: #666; }
+
+    /* RIGHT PANEL */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel-scroll::-webkit-scrollbar { width: 4px; }
+    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Single concept prompt */
+    .topic-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .topic-card .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .topic-card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    /* FAA source drawer */
+    .faa-drawer {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      overflow: hidden;
+    }
+    .faa-drawer summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .faa-drawer summary::-webkit-details-marker { display: none; }
+    .faa-drawer summary::after {
+      content: '+';
+      font-size: 14px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .faa-drawer[open] summary::after { content: '\2212'; }
+    .faa-drawer .drawer-body {
+      padding: 0 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .faa-drawer .drawer-body p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Transcript */
+    .transcript-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      flex: 1;
+      min-height: 120px;
+    }
+    .transcript-card .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .live-badge {
+      display: none;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      background: var(--red-soft);
+      color: var(--red);
+      border-radius: 4px;
+      letter-spacing: .04em;
+    }
+    .live-badge.visible { display: inline-block; }
+    #transcript-text {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      min-height: 60px;
+    }
+    #transcript-text.has-text { color: var(--text); }
+    #transcript-text .interim { color: var(--text-muted); font-style: italic; }
+
+    /* Phase panels (FEEDBACK, MINI_LESSON, FOLLOW_UP, DECISION) */
+    .phase-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .phase-card .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .phase-card .body-text {
+      font-size: 13px;
+      line-height: 1.75;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+    .phase-card.mini-lesson { border-color: rgba(79,124,255,.3); background: var(--accent-soft); }
+    .phase-card.mini-lesson .eyebrow { color: var(--accent); }
+
+    .citation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .citation-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    .citation-item svg { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+
+    .phase-btn {
+      padding: 11px 16px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+      background: var(--accent);
+      color: #fff;
+    }
+    .phase-btn:hover { background: #3d6bef; }
+    .phase-btn.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .phase-btn.ghost:hover { color: var(--text); border-color: var(--accent); }
+
+    /* Follow-up question */
+    .followup-question {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+      font-style: italic;
+      padding: 10px 12px;
+      background: var(--bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+    }
+    .followup-textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      line-height: 1.6;
+    }
+    .followup-textarea:focus { border-color: var(--accent); }
+
+    /* Decision banner */
+    .decision-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .decision-banner.pass { background: var(--green-soft); color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+    .decision-banner.retry { background: var(--amber-soft); color: var(--amber); border: 1px solid rgba(251,191,36,.3); }
+    .decision-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 15px;
+      background: rgba(255,255,255,.08);
+    }
+    .decision-reason {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .attempt-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* RECORD BAR */
+    .record-bar {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .record-controls { display: flex; gap: 8px; }
+    .record-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .record-btn.start { background: var(--accent); color: #fff; }
+    .record-btn.start:hover { background: #3d6bef; }
+    .record-btn.stop { background: var(--red-soft); border: 1px solid var(--red); color: var(--red); }
+    .record-btn.stop:hover { background: rgba(248,113,113,.2); }
+    .record-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .submit-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: var(--green);
+      color: #0f1117;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .submit-btn:hover { background: #2bc28a; }
+    .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* API KEY MODAL */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 380px;
+      box-shadow: var(--shadow);
+    }
+    .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .modal p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+    .modal input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: monospace;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btns button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .modal-btns .primary { background: var(--accent); color: #fff; }
+    .modal-btns .secondary { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* Waveform */
+    .waveform {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 28px;
+      padding: 0 4px;
+    }
+    .waveform.visible { display: flex; }
+    .wave-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--red);
+      animation: wave 1s ease-in-out infinite;
+    }
+    .wave-bar:nth-child(1) { animation-delay: 0s; }
+    .wave-bar:nth-child(2) { animation-delay: .1s; }
+    .wave-bar:nth-child(3) { animation-delay: .2s; }
+    .wave-bar:nth-child(4) { animation-delay: .3s; }
+    .wave-bar:nth-child(5) { animation-delay: .2s; }
+    .wave-bar:nth-child(6) { animation-delay: .1s; }
+    .wave-bar:nth-child(7) { animation-delay: 0s; }
+    @keyframes wave { 0%,100% { height: 6px; } 50% { height: 22px; } }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 768px) {
+      .workspace { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 57px); }
+      .whiteboard-area { min-height: 320px; border-right: none; border-bottom: 1px solid var(--border); }
+      .right-panel { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="index.html" class="back-btn">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="10 3 5 8 10 13"/></svg>
+    Dashboard
+  </a>
+  <div class="topbar-title">
+    <p class="eyebrow">Teach-Back Session</p>
+    <h1>How is lift created on an airplane?</h1>
+  </div>
+  <div class="phase-badge" id="phaseBadge">Teach-Back</div>
+  <div class="timer-badge">
+    <div class="timer-dot" id="timerDot"></div>
+    <span id="timerDisplay">00:00</span>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- WHITEBOARD -->
+  <div class="whiteboard-area">
+    <div class="wb-toolbar">
+      <span class="wb-toolbar-label">Board</span>
+      <button class="tool-btn active" id="toolPen" title="Pen" onclick="setTool('pen')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="tool-btn" id="toolHighlight" title="Highlighter" onclick="setTool('highlight')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </button>
+      <button class="tool-btn" id="toolEraser" title="Eraser" onclick="setTool('eraser')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 20 8 20"/><path d="M8.5 20L3 14.5l9-9 6.5 6.5-3.5 3.5"/></svg>
+      </button>
+      <div class="tool-sep"></div>
+      <div class="color-swatch active" style="background:#1a1a2e" data-color="#1a1a2e" onclick="setColor(this)" title="Dark"></div>
+      <div class="color-swatch" style="background:#e63946" data-color="#e63946" onclick="setColor(this)" title="Red"></div>
+      <div class="color-swatch" style="background:#2563eb" data-color="#2563eb" onclick="setColor(this)" title="Blue"></div>
+      <div class="color-swatch" style="background:#16a34a" data-color="#16a34a" onclick="setColor(this)" title="Green"></div>
+      <div class="color-swatch" style="background:#d97706" data-color="#d97706" onclick="setColor(this)" title="Orange"></div>
+      <div class="tool-sep"></div>
+      <input type="range" class="size-slider" id="sizeSlider" min="1" max="20" value="3" title="Brush size" />
+      <button class="clear-btn" onclick="clearBoard()">Clear board</button>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="whiteboard"></canvas>
+      <div class="canvas-hint" id="canvasHint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <p>Draw your diagram here</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="panel-scroll">
+
+      <!-- Single concept prompt (always visible) -->
+      <div class="topic-card">
+        <p class="eyebrow">Today's Concept</p>
+        <h2>How is lift created on an airplane?</h2>
+      </div>
+
+      <!-- FAA source drawer (collapsed) -->
+      <details class="faa-drawer">
+        <summary>FAA-Aligned Content &mdash; Sources Available</summary>
+        <div class="drawer-body">
+          <p>Aviation Instructor's Handbook (AIH)</p>
+          <p>Pilot's Handbook of Aeronautical Knowledge (PHAK)</p>
+          <p>Airplane Flying Handbook (AFH)</p>
+          <p>Aviation Weather / Weather Services</p>
+          <p>Airman Certification Standards (ACS)</p>
+        </div>
+      </details>
+
+      <!-- PHASE: TEACH_BACK / RETEACH -->
+      <div class="phase-card" id="phase-teachback" style="flex:1; display:flex;">
+        <p class="eyebrow" id="teachbackLabel">Teach It Back</p>
+        <div class="transcript-card" style="flex:1;">
+          <p class="eyebrow">
+            Live Transcript
+            <span class="live-badge" id="liveBadge">&#9679; LIVE</span>
+          </p>
+          <div id="transcript-text">Your words will appear here as you speak...</div>
+        </div>
+      </div>
+
+      <!-- PHASE: FEEDBACK -->
+      <div class="phase-card" id="phase-feedback" hidden>
+        <p class="eyebrow">CFI Feedback</p>
+        <div class="body-text" id="feedbackText"></div>
+        <div class="citation-list" id="citationList"></div>
+        <button class="phase-btn" onclick="continueFromFeedback()">Continue</button>
+      </div>
+
+      <!-- PHASE: MINI_LESSON -->
+      <div class="phase-card mini-lesson" id="phase-minilesson" hidden>
+        <p class="eyebrow">Quick CFI Demo</p>
+        <div class="body-text" id="miniLessonText"></div>
+        <button class="phase-btn" onclick="continueFromMiniLesson()">Got it</button>
+      </div>
+
+      <!-- PHASE: FOLLOW_UP_QUESTION -->
+      <div class="phase-card" id="phase-followup" hidden>
+        <p class="eyebrow">A Student Asks...</p>
+        <div class="followup-question" id="followupQuestion"></div>
+        <textarea class="followup-textarea" id="followupResponse" placeholder="How would you respond?"></textarea>
+        <button class="phase-btn" onclick="continueFromFollowup()">Continue to Re-Teach</button>
+      </div>
+
+      <!-- PHASE: PASS_RETRY_DECISION -->
+      <div class="phase-card" id="phase-decision" hidden>
+        <p class="eyebrow">Result</p>
+        <div class="decision-banner" id="decisionBanner">
+          <span class="decision-icon" id="decisionIcon"></span>
+          <span id="decisionLabel"></span>
+        </div>
+        <div class="decision-reason" id="decisionReason"></div>
+        <button class="phase-btn" onclick="restartLesson()">Practice This Topic Again</button>
+        <a href="index.html"><button class="phase-btn ghost" style="width:100%">Back to Dashboard</button></a>
+      </div>
+
+    </div>
+
+    <!-- RECORD BAR -->
+    <div class="record-bar" id="recordBar">
+      <div class="record-controls">
+        <button class="record-btn start" id="recordBtn" onclick="toggleRecording()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+          Start Recording
+        </button>
+        <div class="waveform" id="waveform">
+          <div class="wave-bar" style="height:8px"></div>
+          <div class="wave-bar" style="height:14px"></div>
+          <div class="wave-bar" style="height:20px"></div>
+          <div class="wave-bar" style="height:24px"></div>
+          <div class="wave-bar" style="height:20px"></div>
+          <div class="wave-bar" style="height:14px"></div>
+          <div class="wave-bar" style="height:8px"></div>
+        </div>
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="submitTeachBack()" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Submit for CFI Review
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>Connect your API key</h2>
+    <p>CFI Coach uses Claude AI to give you FAA-aligned feedback. Paste your Anthropic API key below &mdash; it is stored only in your browser and never sent anywhere except Anthropic's servers.</p>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" />
+    <div class="modal-btns">
+      <button class="secondary" onclick="closeApiModal()">Skip for now</button>
+      <button class="primary" onclick="saveApiKey()">Save &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// WHITEBOARD
+// ============================================================
+const canvas = document.getElementById('whiteboard');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+let lastX = 0, lastY = 0;
+let currentTool = 'pen';
+let currentColor = '#1a1a2e';
+let hasDrawing = false;
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const snap = (canvas.width && canvas.height) ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  if (snap) { try { ctx.putImageData(snap, 0, 0); } catch(e) {} }
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Coordinates are derived directly from the canvas's own bounding box in CSS
+// pixels, and canvas.width/height are set to match those CSS pixels exactly
+// (no devicePixelRatio scaling) -- so the stroke lands exactly under the
+// pointer with no offset or drift.
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return [src.clientX - rect.left, src.clientY - rect.top];
+}
+function startDraw(e) {
+  e.preventDefault();
+  drawing = true;
+  [lastX, lastY] = getPos(e);
+}
+function draw(e) {
+  e.preventDefault();
+  if (!drawing) return;
+  const [x, y] = getPos(e);
+  const size = parseInt(document.getElementById('sizeSlider').value);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (currentTool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.lineWidth = size * 4;
+  } else if (currentTool === 'highlight') {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = currentColor + '55';
+    ctx.lineWidth = size * 5;
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = size;
+  }
+  ctx.stroke();
+  [lastX, lastY] = [x, y];
+  if (!hasDrawing) {
+    hasDrawing = true;
+    document.getElementById('canvasHint').style.display = 'none';
+  }
+}
+function stopDraw() { drawing = false; }
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDraw);
+canvas.addEventListener('mouseleave', stopDraw);
+canvas.addEventListener('touchstart', startDraw, {passive:false});
+canvas.addEventListener('touchmove', draw, {passive:false});
+canvas.addEventListener('touchend', stopDraw);
+
+function setTool(t) {
+  currentTool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool' + t.charAt(0).toUpperCase() + t.slice(1)).classList.add('active');
+}
+function setColor(el) {
+  currentColor = el.dataset.color;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  if (currentTool === 'eraser') setTool('pen');
+}
+function clearBoard() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasDrawing = false;
+  document.getElementById('canvasHint').style.display = '';
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+let timerSec = 0, timerInterval = null;
+function startTimer() {
+  timerSec = 0;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerSec++;
+    const m = String(Math.floor(timerSec / 60)).padStart(2, '0');
+    const s = String(timerSec % 60).padStart(2, '0');
+    document.getElementById('timerDisplay').textContent = m + ':' + s;
+  }, 1000);
+  document.getElementById('timerDot').classList.add('recording');
+}
+function stopTimer() {
+  clearInterval(timerInterval);
+  document.getElementById('timerDot').classList.remove('recording');
+}
+
+// ============================================================
+// SPEECH RECOGNITION
+// ============================================================
+let isRecording = false;
+let finalTranscript = '';
+let interimTranscript = '';
+let recognition = null;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function initRecognition() {
+  if (!SpeechRecognition) return null;
+  const r = new SpeechRecognition();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = 'en-US';
+  r.onresult = (e) => {
+    interimTranscript = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        finalTranscript += e.results[i][0].transcript + ' ';
+      } else {
+        interimTranscript += e.results[i][0].transcript;
+      }
+    }
+    updateTranscriptDisplay();
+  };
+  r.onerror = (e) => { if (e.error !== 'no-speech') console.warn('Speech error:', e.error); };
+  r.onend = () => { if (isRecording) r.start(); };
+  return r;
+}
+
+function updateTranscriptDisplay() {
+  const el = document.getElementById('transcript-text');
+  const combined = finalTranscript + (interimTranscript ? '<span class="interim">' + interimTranscript + '</span>' : '');
+  if (combined.trim()) {
+    el.classList.add('has-text');
+    el.innerHTML = combined;
+  }
+}
+
+function toggleRecording() {
+  if (!isRecording) startRecording(); else stopRecording();
+}
+
+function startRecording() {
+  isRecording = true;
+  finalTranscript = '';
+  interimTranscript = '';
+  const btn = document.getElementById('recordBtn');
+  btn.className = 'record-btn stop';
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> Stop Recording';
+  document.getElementById('waveform').classList.add('visible');
+  document.getElementById('liveBadge').classList.add('visible');
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('transcript-text').textContent = '';
+  document.getElementById('transcript-text').classList.remove('has-text');
+  startTimer();
+  if (SpeechRecognition) {
+    recognition = initRecognition();
+    recognition.start();
+  } else {
+    document.getElementById('transcript-text').textContent = 'Live transcription requires Chrome. Your session is being timed -- submit when done.';
+  }
+}
+
+function stopRecording() {
+  isRecording = false;
+  const btn = document.getElementById('recordBtn');
+  btn.className = 'record-btn start';
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Record Again';
+  document.getElementById('waveform').classList.remove('visible');
+  document.getElementById('liveBadge').classList.remove('visible');
+  stopTimer();
+  if (recognition) { recognition.stop(); recognition = null; }
+  const hasContent = finalTranscript.trim().length > 10;
+  document.getElementById('submitBtn').disabled = !hasContent;
+  if (!finalTranscript.trim()) {
+    document.getElementById('transcript-text').textContent = 'No transcript captured. Check microphone permissions and try again.';
+  }
+}
+
+// ============================================================
+// API KEY
+// ============================================================
+function getApiKey() { return localStorage.getItem('cfi_coach_api_key') || ''; }
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) return;
+  localStorage.setItem('cfi_coach_api_key', key);
+  closeApiModal();
+  submitTeachBack();
+}
+function closeApiModal() { document.getElementById('apiModal').classList.remove('open'); }
+
+// ============================================================
+// LESSON PHASE STATE MACHINE  (phases 6-11)
+// ============================================================
+const TOPIC = 'How is lift created on an airplane?';
+const MAX_ATTEMPTS = 3;
+
+let lessonPhase = 'TEACH_BACK';
+let attempt = 1;
+let lastEvaluation = null;
+
+const PHASE_LABELS = {
+  TEACH_BACK: 'Teach-Back',
+  RETEACH: 'Re-Teach',
+  FEEDBACK: 'Feedback',
+  MINI_LESSON: 'CFI Demo',
+  FOLLOW_UP_QUESTION: 'Student Question',
+  PASS_RETRY_DECISION: 'Result'
+};
+
+const PHASE_PANEL_IDS = {
+  TEACH_BACK: 'phase-teachback',
+  RETEACH: 'phase-teachback',
+  FEEDBACK: 'phase-feedback',
+  MINI_LESSON: 'phase-minilesson',
+  FOLLOW_UP_QUESTION: 'phase-followup',
+  PASS_RETRY_DECISION: 'phase-decision'
+};
+
+function setPhase(phase) {
+  lessonPhase = phase;
+  document.getElementById('phaseBadge').textContent = PHASE_LABELS[phase];
+
+  // show only the active phase panel
+  const allPanels = new Set(Object.values(PHASE_PANEL_IDS));
+  allPanels.forEach(id => { document.getElementById(id).hidden = true; });
+  document.getElementById(PHASE_PANEL_IDS[phase]).hidden = false;
+
+  // record bar only visible while teaching/re-teaching
+  const recording = (phase === 'TEACH_BACK' || phase === 'RETEACH');
+  document.getElementById('recordBar').style.display = recording ? 'flex' : 'none';
+
+  document.getElementById('teachbackLabel').textContent =
+    phase === 'RETEACH' ? 'Re-Teach It' : 'Teach It Back';
+}
+
+// ---- TEACH_BACK / RETEACH -> submit -> calls AI -> FEEDBACK ----
+async function submitTeachBack() {
+  const apiKey = getApiKey();
+  if (!apiKey) { document.getElementById('apiModal').classList.add('open'); return; }
+
+  const transcript = finalTranscript.trim();
+  if (!transcript) return;
+
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('feedbackText').innerHTML = '<div class="loading"><div class="spinner"></div>Your CFI is reviewing your explanation...</div>';
+  document.getElementById('citationList').innerHTML = '';
+  setPhase('FEEDBACK');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: buildPrompt(transcript) }]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || 'API error ' + res.status);
+    }
+    const data = await res.json();
+    lastEvaluation = parseEvaluation(data.content[0].text);
+    renderFeedback(lastEvaluation);
+  } catch (err) {
+    document.getElementById('feedbackText').innerHTML = '<span style="color:var(--red)">Could not reach the API: ' + escapeHtml(err.message) + '<br><br>Check your API key and try again.</span>';
+  }
+}
+
+function buildPrompt(transcript) {
+  return 'You are an experienced, warm, and skilled Certified Flight Instructor (CFI) evaluating a CFI-candidate\'s teach-back. This is attempt ' + attempt + ' of ' + MAX_ATTEMPTS + ' on the topic: "' + TOPIC + '".\n\n' +
+'Your evaluation must be grounded exclusively in these approved FAA sources:\n' +
+'- Pilot\'s Handbook of Aeronautical Knowledge (PHAK), Chapter 4 (Aerodynamics of Flight)\n' +
+'- Aviation Instructor\'s Handbook (AIH)\n\n' +
+'Key FAA-correct concepts for this topic:\n' +
+'1. Airfoil shape: chord line, camber, leading/trailing edge\n' +
+'2. Relative wind and angle of attack (AOA)\n' +
+'3. Bernoulli\'s Principle: faster airflow over the curved upper surface creates lower pressure above the wing\n' +
+'4. Newton\'s Third Law: the wing deflects air downward and the reaction force pushes the wing up\n' +
+'5. Lift equation: L = CL x (1/2 x rho x V^2) x S\n' +
+'6. Factors affecting lift: AOA, airspeed, air density, wing area, flaps\n' +
+'7. The FAA endorses BOTH Bernoulli and Newton as contributors to lift. The "equal transit time" theory is debunked and must be corrected if stated.\n\n' +
+'STUDENT TRANSCRIPT:\n"' + transcript + '"\n\n' +
+'Evaluate per ACS standards for a CFI applicant: is this explanation accurate, complete, and teachable to a private pilot student?\n\n' +
+'Respond with ONLY a single valid JSON object (no markdown fences, no extra text) with this exact shape:\n' +
+'{\n' +
+'  "feedbackText": "Warm, conversational CFI feedback in flowing paragraphs (not bullets), under 180 words. Acknowledge what they did well first, then address the single most important gap or error. If they used debunked theory, correct it kindly.",\n' +
+'  "citations": ["1-2 short FAA citations, e.g. PHAK Chapter 4, Bernoulli\'s Principle"],\n' +
+'  "acsStatus": "met or not met",\n' +
+'  "miniLessonText": "If acsStatus is not met: a short, structured, FAA-aligned mini-lesson (under 130 words) modeling how a CFI would correctly teach the gap you identified. If acsStatus is met, use an empty string.",\n' +
+'  "studentQuestion": "If acsStatus is not met: one realistic, natural follow-up question a private pilot student might ask after hearing the mini-lesson, reflecting confusion, a misconception, fear, overconfidence, or a wrong mental model. If acsStatus is met, use an empty string.",\n' +
+'  "questionType": "one of: misunderstanding, confusion, fear, overconfidence, wrong-mental-model -- or empty string if acsStatus is met"\n' +
+'}';
+}
+
+function parseEvaluation(text) {
+  let jsonStr = text.trim();
+  const fenceMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) jsonStr = fenceMatch[1].trim();
+  const braceMatch = jsonStr.match(/\{[\s\S]*\}/);
+  if (braceMatch) jsonStr = braceMatch[0];
+  return JSON.parse(jsonStr);
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ---- FEEDBACK ----
+function renderFeedback(ev) {
+  document.getElementById('feedbackText').textContent = ev.feedbackText;
+  const list = document.getElementById('citationList');
+  list.innerHTML = '';
+  (ev.citations || []).slice(0, 2).forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'citation-item';
+    div.innerHTML = '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm.75 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zM7.25 7h1.5v5h-1.5V7z"/></svg><span></span>';
+    div.querySelector('span').textContent = c;
+    list.appendChild(div);
+  });
+}
+
+// FEEDBACK -> Continue
+function continueFromFeedback() {
+  if (!lastEvaluation) return;
+
+  if (lastEvaluation.acsStatus === 'met') {
+    showDecision('pass', 'Your explanation covered the key FAA concepts accurately and clearly enough to teach a private pilot student.');
+    return;
+  }
+
+  if (attempt >= MAX_ATTEMPTS) {
+    showDecision('retry', 'You are making progress, but this concept needs more work. Let\'s revisit it in a future lesson rather than loop here.');
+    return;
+  }
+
+  document.getElementById('miniLessonText').textContent = lastEvaluation.miniLessonText || '';
+  setPhase('MINI_LESSON');
+}
+
+// MINI_LESSON -> Got it
+function continueFromMiniLesson() {
+  document.getElementById('followupQuestion').textContent = lastEvaluation.studentQuestion || '';
+  document.getElementById('followupResponse').value = '';
+  setPhase('FOLLOW_UP_QUESTION');
+}
+
+// FOLLOW_UP_QUESTION -> Continue to Re-Teach
+function continueFromFollowup() {
+  attempt++;
+  finalTranscript = '';
+  interimTranscript = '';
+  document.getElementById('transcript-text').textContent = 'Your words will appear here as you speak...';
+  document.getElementById('transcript-text').classList.remove('has-text');
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('timerDisplay').textContent = '00:00';
+  const btn = document.getElementById('recordBtn');
+  btn.className = 'record-btn start';
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Start Recording';
+  setPhase('RETEACH');
+}
+
+// ---- PASS_RETRY_DECISION ----
+function showDecision(decision, reason) {
+  const banner = document.getElementById('decisionBanner');
+  const icon = document.getElementById('decisionIcon');
+  const label = document.getElementById('decisionLabel');
+  banner.className = 'decision-banner ' + decision;
+  if (decision === 'pass') {
+    icon.textContent = '✓';
+    label.textContent = 'Checkride Ready';
+  } else {
+    icon.textContent = '↻';
+    label.textContent = 'Keep Practicing -- Revisit Later';
+  }
+  document.getElementById('decisionReason').textContent = reason;
+  setPhase('PASS_RETRY_DECISION');
+}
+
+function restartLesson() {
+  attempt = 1;
+  lastEvaluation = null;
+  finalTranscript = '';
+  interimTranscript = '';
+  document.getElementById('transcript-text').textContent = 'Your words will appear here as you speak...';
+  document.getElementById('transcript-text').classList.remove('has-text');
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('timerDisplay').textContent = '00:00';
+  const btn = document.getElementById('recordBtn');
+  btn.className = 'record-btn start';
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Start Recording';
+  clearBoard();
+  setPhase('TEACH_BACK');
+}
+
+document.getElementById('apiModal').addEventListener('click', function(e) { if (e.target === this) closeApiModal(); });
+
+// init
+setPhase('TEACH_BACK');
+</script>
+</body>
+</html>
